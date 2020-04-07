@@ -7,16 +7,14 @@ from barbar import Bar
 
 from classvdd.model import autoencoder, network
 from classvdd.utils.utils import weights_init_normal, EarlyStopping
-from preprocess import get_ALeRCE_data
 
 
 class TrainerClasSVDD:
-    def __init__(self, args, dataloader_train, dataloader_val, device, scaler):
+    def __init__(self, args, dataloader_train, dataloader_val, device):
         self.args = args
         self.dataloader_train = dataloader_train
         self.dataloader_val = dataloader_val
         self.device = device
-        self.scaler = scaler
     
 
     def pretrain(self):
@@ -43,8 +41,9 @@ class TrainerClasSVDD:
                 total_loss += reconst_loss.item()
             scheduler.step()
             print('Pretraining Autoencoder... Epoch: {}, Loss: {:.3f}'.format(
-                   epoch, total_loss/len(self.train_loader)))
-        torch.save({'net_dict': ae.state_dict()}, 'classvdd/weights/pretrained_parameters.pth')
+                   epoch, total_loss/len(self.dataloader_train)))
+        torch.save({'model': ae.state_dict()}, 'classvdd/weights/pretrained_parameters_{}.pth'.format(
+                                                   self.args.anormal_class))
 
     def train(self):
         """Training the ClasSVDD model"""
@@ -65,7 +64,7 @@ class TrainerClasSVDD:
         for epoch in range(self.args.num_epochs):
             total_loss = 0
             self.net.train()
-            for x, _, y in Bar(self.dataloader_train):
+            for x, y, _ in Bar(self.dataloader_train):
                 x = x.float().to(self.device)
                 y = y.long()
 
@@ -92,7 +91,7 @@ class TrainerClasSVDD:
 
         total_loss = 0
         with torch.no_grad():
-            for x, _, y in Bar(self.dataloader_val):
+            for x, y, _ in Bar(self.dataloader_val):
                 x = x.float().to(self.device)
                 y = y.long()
                 
@@ -104,41 +103,43 @@ class TrainerClasSVDD:
         print('Testing ClasSVDD... Epoch: {}, Loss: {:.3}'.format(
              epoch, loss
              ))
-        stop = self.es.count(loss, self.net, self.c)
+        stop = self.es.count(loss, self.net, self.c, self.args)
         return loss, stop
     
     def load_pretrained_weights(self):
         self.net = network().to(self.device)
-        state_dict = torch.load('classvdd/weights/pretrained_parameters.pth')
+        state_dict = torch.load('classvdd/weights/pretrained_parameters_{}.pth'.format(self.args.anormal_class))
         self.net.load_state_dict(state_dict['model'], strict=False)
         self.c = self.set_c().to(self.device)
        
     def load_weights(self):
-        state_dict = torch.load('classvdd/weights/model_parameters.pth')
+        state_dict = torch.load('classvdd/weights/model_parameters_{}.pth'.format(self.args.anormal_class))
         self.net.load_state_dict(state_dict['model'])
         self.c = torch.Tensor(state_dict['center']).to(self.device)
     
     def set_c(self, eps=0.1):
         """Initializing the center for the hypersphere"""
         self.net.eval()
-        dataloder, _, _ = get_ALeRCE_data(self.args.batch_size, 'train', mode='val')
-        latents, labels = self.get_latent_space(dataloder)
+        latents, labels = self.get_latent_space()
         c = []
-        for i in range(len(np.unique(labels))):
+        for i in range(10):
             ixs = np.where(labels == i)
-            c.append(torch.mean(latents[ixs], dim=0))
+            if len(ixs[0])>0:
+                c.append(torch.mean(latents[ixs], dim=0))
+            else:
+                c.append(torch.ones(latents[0].shape)*-999)
         c = torch.stack(c)
         for i in range(len(c)):
             c[i][(abs(c[i]) < eps) & (c[i] < 0)] = -eps
             c[i][(abs(c[i]) < eps) & (c[i] > 0)] = eps
         return c
 
-    def get_latent_space(self, dataloader):
+    def get_latent_space(self):
         latents = []
         labels = []
         self.net.eval()
         with torch.no_grad():
-            for x, _, y in dataloader:
+            for x, y, _ in self.dataloader_train:
                 x, y = x.to(self.device).float(), y.long()
                 z = self.net(x)
                 latents.append(z.detach().cpu())

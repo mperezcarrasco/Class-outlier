@@ -19,21 +19,21 @@ class TrainerDeepSVDD:
 
     def pretrain(self):
         """ Pretraining the weights for the deep SVDD network using autoencoder"""
-        ae = autoencoder(self.args.latent_dim).to(self.device)
-        ae.apply(weights_init_normal)
-        optimizer = optim.Adam(ae.parameters(), lr=self.args.lr_ae,
+        self.ae = autoencoder(self.args.latent_dim).to(self.device)
+        self.ae.apply(weights_init_normal)
+        optimizer = optim.Adam(self.ae.parameters(), lr=self.args.lr_ae,
                                weight_decay=self.args.weight_decay_ae)
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                     milestones=self.args.lr_milestones, gamma=0.1)
         
-        ae.train()
+        self.ae.train()
         for epoch in range(self.args.num_epochs_ae):
             total_loss = 0
             for x, _, _ in Bar(self.dataloader_train):
                 x = x.float().to(self.device)
                 
                 optimizer.zero_grad()
-                x_hat = ae(x)
+                x_hat = self.ae(x)
                 reconst_loss = torch.mean(torch.sum((x_hat - x) ** 2, dim=tuple(range(1, x_hat.dim()))))
                 reconst_loss.backward()
                 optimizer.step()
@@ -41,8 +41,9 @@ class TrainerDeepSVDD:
                 total_loss += reconst_loss.item()
             scheduler.step()
             print('Pretraining Autoencoder... Epoch: {}, Loss: {:.3f}'.format(
-                   epoch, total_loss/len(self.train_loader)))
-        torch.save({'net_dict': ae.state_dict()}, 'deepsvdd/weights/pretrained_parameters.pth')
+                   epoch, total_loss/len(self.dataloader_train)))
+        torch.save({'model': self.ae.state_dict()}, 'deepsvdd/weights/pretrained_parameters_{}.pth'.format(
+                                                     self.args.anormal_class))
 
     def train(self):
         """Training the Deep SVDD model"""
@@ -99,17 +100,17 @@ class TrainerDeepSVDD:
         print('Testing Autoencoder... Epoch: {}, Loss: {:.3}'.format(
              epoch, loss
              ))
-        stop = self.es.count(loss, self.net, self.c)
+        stop = self.es.count(loss, self.net, self.c, self.args)
         return loss, stop
     
     def load_pretrained_weights(self):
         self.net = network().to(self.device)
-        state_dict = torch.load('deepsvdd/weights/pretrained_parameters.pth')
+        state_dict = torch.load('deepsvdd/weights/pretrained_parameters_{}.pth'.format(self.args.anormal_class))
         self.net.load_state_dict(state_dict['model'], strict=False)
         self.c = self.set_c().to(self.device)
        
     def load_weights(self):
-        state_dict = torch.load('deepsvdd/weights/model_parameters.pth')
+        state_dict = torch.load('deepsvdd/weights/model_parameters_{}.pth'.format(self.args.anormal_class))
         self.net.load_state_dict(state_dict['model'])
         self.c = torch.Tensor(state_dict['center']).to(self.device)
     
