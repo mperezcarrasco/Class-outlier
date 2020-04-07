@@ -1,0 +1,10 @@
+*.pkl
+__pycache__/*
+ae/weights/*
+vae/weights/*
+deepsvdd/weights/*
+classvdd/weights/*
+dagmm/weights/*
+vade/weights/*
+*.npy
+data/*
