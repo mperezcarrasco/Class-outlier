@@ -17,14 +17,14 @@ def eval(net, dataloader, device):
             x = x.float().to(device)
             x_hat, _, _, z = net(x)
             score = F.mse_loss(x_hat, x, reduction='none')
-            score = torch.sum(score, dim=1)
+            score = torch.sum(score, dim=(1,2,3))
 
             scores.append(score.detach().cpu())
             latents.append(z.detach().cpu())
             labels1.append(y1.cpu())
             labels2.append(y2.cpu())
             
-    labels1, labels2 = torch.cat(labels1).numpy(), torch.cat(labels2).numpy(), 
+    labels1, labels2 = torch.cat(labels1).numpy(), torch.cat(labels2).numpy()
     scores, latents = torch.cat(scores).numpy(), torch.cat(latents).numpy()
-    print('ROC AUC score: {:.3f}'.format(roc_auc_score(labels1, scores)))
-    return labels1.reshape(-1,), labels2.reshape(-1,), scores, latents
+    print('ROC AUC score: {:.3f}'.format(roc_auc_score(labels2, scores)))
+    return labels1, labels2, scores, latents

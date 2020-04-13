@@ -24,7 +24,7 @@ class TrainerAE:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.device = device
-        self.es = EarlyStopping(self.args.patience)
+        self.es = EarlyStopping(self.args.patience, self.args)
 
     def train(self):
         """Training the autoencoder"""
@@ -78,7 +78,8 @@ class TrainerAE:
         return loss, stop
    
     def load_weights(self):
-        state_dict = torch.load('ae/weights/model_parameters.pth')
+        state_dict = torch.load('ae/weights/model_parameters_{}.pth'.format(
+                                self.args.anormal_class))
         self.model.load_state_dict(state_dict['model'])
         
 

@@ -24,7 +24,7 @@ class TrainerDeepSVDD:
         optimizer = optim.Adam(self.ae.parameters(), lr=self.args.lr_ae,
                                weight_decay=self.args.weight_decay_ae)
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
-                    milestones=self.args.lr_milestones, gamma=0.1)
+                    milestones=self.args.lr_milestones_ae, gamma=0.1)
         
         self.ae.train()
         for epoch in range(self.args.num_epochs_ae):
@@ -58,7 +58,7 @@ class TrainerDeepSVDD:
         optimizer = optim.Adam(self.net.parameters(), lr=self.args.lr,
                                weight_decay=self.args.weight_decay)
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, 
-                    milestones=self.args.lr_milestones, gamma=0.1)
+                    milestones=self.args.lr_milestones_ae, gamma=0.1)
         self.loss = []
         self.loss_t = []
         for epoch in range(self.args.num_epochs):
@@ -97,7 +97,7 @@ class TrainerDeepSVDD:
 
                 total_loss+=loss.item()
         loss = total_loss/len(self.dataloader_val)
-        print('Testing Autoencoder... Epoch: {}, Loss: {:.3}'.format(
+        print('Testing Deep SVDD... Epoch: {}, Loss: {:.3}'.format(
              epoch, loss
              ))
         stop = self.es.count(loss, self.net, self.c, self.args)

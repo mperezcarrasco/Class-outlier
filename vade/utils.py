@@ -2,11 +2,12 @@ import torch
 import numpy as np
 
 class EarlyStopping:
-    def __init__(self, patience):
+    def __init__(self, patience, args):
         """Class for determining the stopping criterion for the model"""
         self.patience = patience
         self.counter = 0
         self.best_loss = 9999
+        self.args = args
 
     def count(self, loss, model):
         is_best = bool( loss <= self.best_loss)
@@ -25,9 +26,10 @@ class EarlyStopping:
  
     def save_weights(self, model):
         """Save VaDE weights."""
-        torch.save({'model': model.state_dict()}, 'vade/weights/model_parameters.pth')
+        torch.save({'model': model.state_dict()}, 'vade/weights/model_parameters_{}.pth'.format(
+                                                   self.args.anormal_class))
     
-def get_priors(dataloader, model, device):
+def get_priors(dataloader, model, device, latent_dim):
     latent, labels = get_latent_space(dataloader, model, device)
     mean = []
     var = []
@@ -47,7 +49,7 @@ def get_latent_space(dataloader, model, device):
     labels = []
     model.eval()
     with torch.no_grad():
-        for x, _, y in dataloader:
+        for x, y, _ in dataloader:
             x, y = x.to(device).float(), y.long()
             _, z = model(x)
             latents.append(z.detach().cpu())

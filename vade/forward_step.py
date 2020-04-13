@@ -7,15 +7,15 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.utils.linear_assignment_ import linear_assignment
 
 class ComputeLosses:
-    def __init__(self, model):
+    def __init__(self, model, args):
         self.model = model
+        self.args = args
 
     def forward(self, mode, x_sup, y_sup, epoch):
         self.epoch=epoch
         
         reconst_loss, kl_div, clf_loss, probs = self.supervised_loss(x_sup, y_sup)
-        supervised_loss = reconst_loss + kl_div
-        loss = supervised_loss + clf_loss
+        loss = reconst_loss + kl_div + clf_loss
         acc = self.compute_metrics(y_sup, probs)
 
         return loss, reconst_loss, kl_div, acc*100
@@ -31,14 +31,17 @@ class ComputeLosses:
                             torch.exp(log_var)/covs_batch + \
                             torch.pow(mu-means_batch,2)/covs_batch - \
                             (1+log_var),dim=1)*0.5 - z.size(1)*0.5*np.log(2*np.pi)))
+        kl_div *= self.args.kl_mul
 
-        reconst_loss = F.mse_loss(x_hat, x)
+        reconst_loss = F.mse_loss(x_hat, x, reduction='mean')
+        reconst_loss *= self.args.rec_mul
 
         probs = self.compute_pcz(z, p_c)
         
-        clf_loss = F.cross_entropy(probs, y)
+        clf_loss = F.cross_entropy(probs, y, reduction='mean')
+        clf_loss *= self.args.cl_mul
         
-        reconst_loss *= 100
+        reconst_loss *= 1
         kl_div *= 1
         clf_loss *= 1
 

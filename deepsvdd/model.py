@@ -43,19 +43,19 @@ class autoencoder(nn.Module):
         
     def encode(self, x):
         x = self.conv1(x)
-        x = self.pool(F.leaky_relu(self.bn1(x)))
+        x = self.pool(F.leaky_relu(self.bn1(x), negative_slope=0.1))
         x = self.conv2(x)
-        x = self.pool(F.leaky_relu(self.bn2(x)))
+        x = self.pool(F.leaky_relu(self.bn2(x), negative_slope=0.1))
         x = x.view(x.size(0), -1)
         return self.fc1(x)
    
     def decode(self, x):
         x = x.view(x.size(0), int(self.z_dim / 16), 4, 4)
-        x = F.interpolate(F.leaky_relu(x), scale_factor=2)
+        x = F.interpolate(F.leaky_relu(x, negative_slope=0.1), scale_factor=2)
         x = self.deconv1(x)
-        x = F.interpolate(F.leaky_relu(self.bn3(x)), scale_factor=2)
+        x = F.interpolate(F.leaky_relu(self.bn3(x), negative_slope=0.1), scale_factor=2)
         x = self.deconv2(x)
-        x = F.interpolate(F.leaky_relu(self.bn4(x)), scale_factor=2)
+        x = F.interpolate(F.leaky_relu(self.bn4(x), negative_slope=0.1), scale_factor=2)
         x = self.deconv3(x)
         return torch.sigmoid(x)
 

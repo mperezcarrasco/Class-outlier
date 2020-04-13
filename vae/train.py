@@ -24,7 +24,7 @@ class TrainerVAE:
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.device = device
-        self.es = EarlyStopping(self.args.patience)
+        self.es = EarlyStopping(self.args.patience, self.args)
 
     def train(self):
         """Training VAE"""
@@ -44,8 +44,8 @@ class TrainerVAE:
                 
                 optimizer.zero_grad()
                 x_hat, mu, log_var, _ = self.model(x)
-                reconst_loss = F.mse_loss(x_hat, x, reduction='mean') * 1000
-                kl_div = - 0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) * 0.001
+                reconst_loss = F.mse_loss(x_hat, x, reduction='mean')
+                kl_div = - 0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
                 loss = reconst_loss + kl_div
                 loss.backward()
                 optimizer.step()
@@ -79,7 +79,8 @@ class TrainerVAE:
         return total_loss, stop
 
     def load_weights(self):
-        state_dict = torch.load('vae/weights/model_parameters.pth')
+        state_dict = torch.load('vae/weights/model_parameters_{}.pth'.format(
+                                 self.args.anormal_class))
         self.model.load_state_dict(state_dict['model'])
         
         

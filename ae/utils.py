@@ -2,11 +2,12 @@ import torch
 
 
 class EarlyStopping:
-    def __init__(self, patience):
+    def __init__(self, patience, args):
         """Class for determining the stopping criterion for the model"""
         self.patience = patience
         self.counter = 0
         self.best_loss = 9999
+        self.args = args
 
     def count(self, loss, model):
         is_best = bool( loss <= self.best_loss)
@@ -25,4 +26,5 @@ class EarlyStopping:
  
     def save_weights(self, model):
         """Save Autoencoder weights."""
-        torch.save({'model': model.state_dict()}, 'ae/weights/model_parameters.pth')
+        torch.save({'model': model.state_dict()}, 'ae/weights/model_parameters_{}.pth'.format(
+                                                   self.args.anormal_class))
